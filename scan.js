@@ -2,6 +2,7 @@ const startBtn = document.getElementById("startScanBtn");
 const video = document.getElementById("video");
 const codeSpan = document.getElementById("code");
 
+// Hint pour ZXing : tu peux ajouter DATA_MATRIX si tu veux fallback plus tard
 const hints = new Map();
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
   ZXing.BarcodeFormat.EAN_13,
@@ -15,11 +16,13 @@ startBtn.addEventListener("click", async () => {
   codeSpan.textContent = "En attente du scan...";
 
   try {
+    // 🔥 Résolution maximale + caméra arrière
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 1920 },   // résolution plus haute
+        height: { ideal: 1080 },  // résolution plus haute
+        // advanced: [{ zoom: 1 }]  // optionnel, certaines caméras le supportent
       }
     });
 
@@ -28,9 +31,8 @@ startBtn.addEventListener("click", async () => {
 
     codeReader.decodeFromVideoElement(video, (result, err) => {
       if (result) {
-        console.log("EAN détecté :", result.text);
+        console.log("Code détecté :", result.text);
         codeSpan.textContent = result.text;
-
         stopScan();
       }
 
@@ -40,7 +42,7 @@ startBtn.addEventListener("click", async () => {
     });
 
   } catch (e) {
-    console.error(e);
+    console.error("Erreur caméra :", e);
     alert("Impossible d’accéder à la caméra arrière");
   }
 });
@@ -48,7 +50,7 @@ startBtn.addEventListener("click", async () => {
 function stopScan() {
   codeReader.reset();
   if (stream) {
-    stream.getTracks().forEach(t => t.stop());
+    stream.getTracks().forEach(track => track.stop());
     stream = null;
   }
 }

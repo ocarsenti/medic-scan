@@ -1,51 +1,24 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scan Médicament</title>
-
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
-    video {
-      width: 100%;
-      max-width: 400px;
-      margin-top: 20px;
-      background: black;
-    }
-    button {
-      padding: 12px 24px;
-      font-size: 1rem;
-    }
-    #result {
-      margin-top: 20px;
-      font-weight: bold;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    video { width: 100%; max-width: 600px; margin-top: 20px; background: black; }
+    button { padding: 12px 24px; font-size: 1rem; cursor: pointer; }
+    #result { margin-top: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <h1>Scan Médicament</h1>
-
   <button id="startScanBtn">Commencer le scan</button>
-
-  <video
-    id="video"
-    autoplay
-    muted
-    playsinline
-  ></video>
-
-  <div id="result">
-    Code scanné : <span id="code">Aucun</span>
-  </div>
+  <video id="video" autoplay muted playsinline></video>
+  <div id="result">Code scanné : <span id="code">Aucun</span></div>
 
   <script src="https://unpkg.com/@zxing/library@latest"></script>
-  <script src="scan.js"></script>
-
+  <script src="scan.js?v=1"></script>
 </body>
 </html>
