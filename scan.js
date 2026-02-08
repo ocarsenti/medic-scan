@@ -1,57 +1,67 @@
+const codeElement = document.getElementById("code");
+const videoElement = document.getElementById("video");
 const startBtn = document.getElementById("startScanBtn");
-const video = document.getElementById("video");
-const codeSpan = document.getElementById("code");
 
-// Hint pour ZXing : tu peux ajouter DATA_MATRIX si tu veux fallback plus tard
-const hints = new Map();
-hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-  ZXing.BarcodeFormat.EAN_13,
-  ZXing.BarcodeFormat.EAN_8
-]);
+// Création du lecteur ZXing
+const codeReader = new ZXing.BrowserBarcodeReader();
 
-const codeReader = new ZXing.BrowserMultiFormatReader(hints);
-let stream = null;
-
+// Fonction pour démarrer le scan
 startBtn.addEventListener("click", async () => {
-  codeSpan.textContent = "En attente du scan...";
+  codeElement.textContent = "En attente du scan...";
 
   try {
-    // 🔥 Résolution maximale + caméra arrière
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },   // résolution plus haute
-        height: { ideal: 1080 },  // résolution plus haute
-        // advanced: [{ zoom: 1 }]  // optionnel, certaines caméras le supportent
+    const videoInputDevices = await codeReader.listVideoInputDevices();
+
+    if (!videoInputDevices.length) {
+      alert("Pas de caméra détectée !");
+      return;
+    }
+
+    // 🔥 PRIORITÉ caméra arrière
+    let selectedDevice = videoInputDevices.find(device =>
+      device.label.toLowerCase().includes("back") ||
+      device.label.toLowerCase().includes("rear")
+    );
+
+    // fallback si on ne trouve pas "back"
+    if (!selectedDevice) {
+      selectedDevice = videoInputDevices[0];
+    }
+
+    console.log("Caméra utilisée :", selectedDevice.label);
+
+    codeReader.decodeFromVideoDevice(
+      selectedDevice.deviceId,
+      videoElement,
+      (result, err) => {
+        if (result) {
+          console.log("Code scanné :", result.text);
+          codeElement.textContent = result.text;
+
+          // Exemple : envoyer au backend
+          /*
+          fetch("https://mon-backend.up.railway.app/api/scan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: result.text })
+          })
+          .then(res => res.json())
+          .then(data => console.log("Backend response:", data));
+          */
+
+          // Stop le scan après un code trouvé
+          codeReader.reset();
+        }
+
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error(err);
+        }
       }
-    });
-
-    video.srcObject = stream;
-    await video.play();
-
-    codeReader.decodeFromVideoElement(video, (result, err) => {
-      if (result) {
-        console.log("Code détecté :", result.text);
-        codeSpan.textContent = result.text;
-        stopScan();
-      }
-
-      if (err && !(err instanceof ZXing.NotFoundException)) {
-        console.error(err);
-      }
-    });
-
+    );
   } catch (e) {
-    console.error("Erreur caméra :", e);
-    alert("Impossible d’accéder à la caméra arrière");
+    console.error("Erreur lors du scan :", e);
+    alert("Impossible d'accéder à la caméra");
   }
 });
 
-function stopScan() {
-  codeReader.reset();
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-  }
-}
 
