@@ -1,67 +1,77 @@
-const codeElement = document.getElementById("code");
-const videoElement = document.getElementById("video");
 const startBtn = document.getElementById("startScanBtn");
+const video = document.getElementById("video");
+const codeSpan = document.getElementById("code");
 
-// Création du lecteur ZXing
-const codeReader = new ZXing.BrowserBarcodeReader();
+// Création d'une zone de logs sur la page
+let logDiv = document.getElementById("log");
+if (!logDiv) {
+  logDiv = document.createElement("div");
+  logDiv.id = "log";
+  logDiv.style.whiteSpace = "pre-wrap";
+  logDiv.style.marginTop = "20px";
+  logDiv.style.fontSize = "0.9em";
+  logDiv.style.color = "darkred";
+  document.body.appendChild(logDiv);
+}
 
-// Fonction pour démarrer le scan
+function logToScreen(msg) {
+  logDiv.textContent += msg + "\n";
+}
+
+// Rediriger console.log et console.error vers la page
+console.log = (msg) => logToScreen("LOG: " + msg);
+console.error = (msg) => logToScreen("ERROR: " + msg);
+
+const hints = new Map();
+hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+  ZXing.BarcodeFormat.EAN_13,
+  ZXing.BarcodeFormat.EAN_8,
+  ZXing.BarcodeFormat.DATA_MATRIX  // si tu veux essayer fallback DataMatrix
+]);
+
+const codeReader = new ZXing.BrowserMultiFormatReader(hints);
+let stream = null;
+
 startBtn.addEventListener("click", async () => {
-  codeElement.textContent = "En attente du scan...";
+  codeSpan.textContent = "En attente du scan...";
+  logToScreen("Scan démarré...");
 
   try {
-    const videoInputDevices = await codeReader.listVideoInputDevices();
-
-    if (!videoInputDevices.length) {
-      alert("Pas de caméra détectée !");
-      return;
-    }
-
-    // 🔥 PRIORITÉ caméra arrière
-    let selectedDevice = videoInputDevices.find(device =>
-      device.label.toLowerCase().includes("back") ||
-      device.label.toLowerCase().includes("rear")
-    );
-
-    // fallback si on ne trouve pas "back"
-    if (!selectedDevice) {
-      selectedDevice = videoInputDevices[0];
-    }
-
-    console.log("Caméra utilisée :", selectedDevice.label);
-
-    codeReader.decodeFromVideoDevice(
-      selectedDevice.deviceId,
-      videoElement,
-      (result, err) => {
-        if (result) {
-          console.log("Code scanné :", result.text);
-          codeElement.textContent = result.text;
-
-          // Exemple : envoyer au backend
-          /*
-          fetch("https://mon-backend.up.railway.app/api/scan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code: result.text })
-          })
-          .then(res => res.json())
-          .then(data => console.log("Backend response:", data));
-          */
-
-          // Stop le scan après un code trouvé
-          codeReader.reset();
-        }
-
-        if (err && !(err instanceof ZXing.NotFoundException)) {
-          console.error(err);
-        }
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       }
-    );
+    });
+
+    video.srcObject = stream;
+    await video.play();
+    logToScreen("Flux vidéo ouvert");
+
+    codeReader.decodeFromVideoElement(video, (result, err) => {
+      if (result) {
+        logToScreen("Code détecté : " + result.text);
+        codeSpan.textContent = result.text;
+        stopScan();
+      }
+
+      if (err && !(err instanceof ZXing.NotFoundException)) {
+        logToScreen("ZXing erreur : " + err);
+      }
+    });
+
   } catch (e) {
-    console.error("Erreur lors du scan :", e);
-    alert("Impossible d'accéder à la caméra");
+    logToScreen("Erreur caméra : " + e);
+    alert("Impossible d’accéder à la caméra arrière");
   }
 });
 
-
+function stopScan() {
+  codeReader.reset();
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+  logToScreen("Scan arrêté, flux vidéo fermé");
+}
