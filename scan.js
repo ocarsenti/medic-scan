@@ -10,16 +10,28 @@ startBtn.addEventListener("click", async () => {
   codeElement.textContent = "En attente du scan...";
 
   try {
-    const selectedDeviceId = await codeReader.listVideoInputDevices()
-      .then(videoInputDevices => videoInputDevices[0]?.deviceId || null);
+    const videoInputDevices = await codeReader.listVideoInputDevices();
 
-    if (!selectedDeviceId) {
+    if (!videoInputDevices.length) {
       alert("Pas de caméra détectée !");
       return;
     }
 
+    // 🔥 PRIORITÉ caméra arrière
+    let selectedDevice = videoInputDevices.find(device =>
+      device.label.toLowerCase().includes("back") ||
+      device.label.toLowerCase().includes("rear")
+    );
+
+    // fallback si on ne trouve pas "back"
+    if (!selectedDevice) {
+      selectedDevice = videoInputDevices[0];
+    }
+
+    console.log("Caméra utilisée :", selectedDevice.label);
+
     codeReader.decodeFromVideoDevice(
-      selectedDeviceId,
+      selectedDevice.deviceId,
       videoElement,
       (result, err) => {
         if (result) {
@@ -40,6 +52,7 @@ startBtn.addEventListener("click", async () => {
           // Stop le scan après un code trouvé
           codeReader.reset();
         }
+
         if (err && !(err instanceof ZXing.NotFoundException)) {
           console.error(err);
         }
@@ -47,5 +60,7 @@ startBtn.addEventListener("click", async () => {
     );
   } catch (e) {
     console.error("Erreur lors du scan :", e);
+    alert("Impossible d'accéder à la caméra");
   }
 });
+
