@@ -1,58 +1,53 @@
-const codeElement = document.getElementById("code");
-const videoElement = document.getElementById("video");
 const startBtn = document.getElementById("startScanBtn");
+const video = document.getElementById("video");
+const codeSpan = document.getElementById("code");
 
 const codeReader = new ZXing.BrowserBarcodeReader();
 
+let stream = null;
+
 startBtn.addEventListener("click", async () => {
-  codeElement.textContent = "En attente du scan...";
+  codeSpan.textContent = "En attente du scan...";
 
   try {
-    // 🔥 FORCER caméra arrière
-    const constraints = {
+    // 🔥 On prend le contrôle total de la caméra
+    stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: { exact: "environment" }
+        facingMode: { ideal: "environment" }
       }
-    };
+    });
 
-    await codeReader.decodeFromConstraints(
-      constraints,
-      videoElement,
-      (result, err) => {
-        if (result) {
-          console.log("Code scanné :", result.text);
-          codeElement.textContent = result.text;
+    video.srcObject = stream;
+    await video.play();
 
-          // Stop le scan
-          codeReader.reset();
-        }
+    // 🔍 ZXing lit directement la vidéo
+    codeReader.decodeFromVideoElement(video, (result, err) => {
+      if (result) {
+        console.log("Code scanné :", result.text);
+        codeSpan.textContent = result.text;
 
-        if (err && !(err instanceof ZXing.NotFoundException)) {
-          console.error(err);
-        }
+        stopScan();
       }
-    );
+
+      if (err && !(err instanceof ZXing.NotFoundException)) {
+        console.error(err);
+      }
+    });
+
   } catch (e) {
-    console.error("Erreur caméra arrière :", e);
-
-    // 🔁 Fallback si facingMode exact échoue
-    try {
-      await codeReader.decodeFromConstraints(
-        { video: { facingMode: "environment" } },
-        videoElement,
-        (result, err) => {
-          if (result) {
-            console.log("Code scanné :", result.text);
-            codeElement.textContent = result.text;
-            codeReader.reset();
-          }
-        }
-      );
-    } catch (fallbackErr) {
-      alert("Impossible d’accéder à la caméra arrière");
-      console.error(fallbackErr);
-    }
+    console.error(e);
+    alert("Impossible d’accéder à la caméra arrière");
   }
 });
+
+function stopScan() {
+  codeReader.reset();
+
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+}
+
 
 

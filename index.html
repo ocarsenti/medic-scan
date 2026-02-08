@@ -1,22 +1,38 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Scan Médicament</title>
+
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-    video { width: 100%; max-width: 400px; margin-top: 20px; }
-    #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; }
-    button { padding: 10px 20px; font-size: 1em; cursor: pointer; }
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    video {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 20px;
+      background: black;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 1rem;
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
   <h1>Scan Médicament</h1>
+
   <button id="startScanBtn">Commencer le scan</button>
 
-  <!-- 🔥 IMPORTANT iOS -->
   <video
     id="video"
     autoplay
@@ -30,5 +46,6 @@
 
   <script src="https://unpkg.com/@zxing/library@latest"></script>
   <script src="scan.js"></script>
+
 </body>
 </html>
