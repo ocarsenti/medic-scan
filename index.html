@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Scan QR / EAN / DataMatrix</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-    video { width: 100%; max-width: 600px; margin-top: 20px; background: black; }
-    button { padding: 12px 24px; font-size: 1rem; cursor: pointer; margin: 5px; }
-    #result { margin-top: 20px; font-weight: bold; }
-    #log { margin-top: 20px; font-size: 0.9em; white-space: pre-wrap; color: darkred; text-align: left; max-width: 600px; margin-left:auto;margin-right:auto; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Scan QR / EAN / DataMatrix</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+  video { width: 100%; max-width: 600px; margin-top: 20px; background: black; }
+  button { padding: 12px 24px; font-size: 1rem; cursor: pointer; margin: 5px; }
+  #result { margin-top: 20px; font-weight: bold; }
+  #log { margin-top: 20px; font-size: 0.9em; white-space: pre-wrap; color: darkred; text-align: left; max-width: 600px; margin-left:auto;margin-right:auto; }
+</style>
 </head>
 <body>
 
@@ -20,6 +20,7 @@
   <button id="scanQRBtn">Scanner QR Code</button>
   <button id="scanEANBtn">Scanner EAN</button>
   <button id="scanDataMatrixBtn">Scanner DataMatrix</button>
+  <button id="stopScanBtn">Arrêter le scan</button>
 </div>
 
 <video id="video" autoplay muted playsinline></video>
@@ -33,6 +34,7 @@ const codeSpan = document.getElementById("code");
 const logDiv = document.getElementById("log");
 let stream = null;
 let codeReader = null;
+let stopRequested = false;
 
 // Redirige console.log et console.error vers l'écran
 function logToScreen(msg){
@@ -42,6 +44,7 @@ console.log = (msg)=> logToScreen("LOG: " + msg);
 console.error = (msg)=> logToScreen("ERROR: " + msg);
 
 function stopScan(){
+  stopRequested = true;
   if(codeReader) codeReader.reset();
   if(stream){
     stream.getTracks().forEach(track => track.stop());
@@ -54,12 +57,12 @@ async function startScan(formats){
   codeSpan.textContent = "En attente du scan...";
   logToScreen("Scan démarré...");
 
-  stopScan();
+  stopRequested = false;
+  stopScan(); // stop flux précédent
 
   try{
     const hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-
     codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
     stream = await navigator.mediaDevices.getUserMedia({
@@ -74,11 +77,15 @@ async function startScan(formats){
     logToScreen("Flux vidéo ouvert");
 
     codeReader.decodeFromVideoElement(video, (result, err)=>{
+      if(stopRequested) return;
+
       if(result){
         logToScreen("Code détecté : " + result.text);
         codeSpan.textContent = result.text;
-        stopScan();
+        stopRequested = true;
+        stopScan(); // stop manuel
       }
+
       if(err && !(err instanceof ZXing.NotFoundException)){
         logToScreen("ZXing erreur : " + err);
       }
@@ -100,6 +107,7 @@ document.getElementById("scanEANBtn").addEventListener("click", ()=>{
 document.getElementById("scanDataMatrixBtn").addEventListener("click", ()=>{
   startScan([ZXing.BarcodeFormat.DATA_MATRIX]);
 });
+document.getElementById("stopScanBtn").addEventListener("click", stopScan);
 </script>
 
 </body>
