@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan Medicament</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    video { width: 100%; max-width: 400px; margin-top: 20px; }
+    #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; }
+    button { padding: 10px 20px; font-size: 1em; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h1>Scan Médicament</h1>
+  <button id="startScanBtn">Commencer le scan</button>
+  <video id="video" autoplay></video>
+  <div id="result">Code scanné : <span id="code">Aucun</span></div>
+
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script src="scan.js"></script>
+</body>
+</html>
