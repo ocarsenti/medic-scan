@@ -4,11 +4,11 @@ const codeSpan = document.getElementById("code");
 
 const hints = new Map();
 hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-  ZXing.BarcodeFormat.DATA_MATRIX
+  ZXing.BarcodeFormat.EAN_13,
+  ZXing.BarcodeFormat.EAN_8
 ]);
 
 const codeReader = new ZXing.BrowserMultiFormatReader(hints);
-
 let stream = null;
 
 startBtn.addEventListener("click", async () => {
@@ -28,7 +28,7 @@ startBtn.addEventListener("click", async () => {
 
     codeReader.decodeFromVideoElement(video, (result, err) => {
       if (result) {
-        console.log("DataMatrix détecté :", result.text);
+        console.log("EAN détecté :", result.text);
         codeSpan.textContent = result.text;
 
         stopScan();
@@ -41,7 +41,7 @@ startBtn.addEventListener("click", async () => {
 
   } catch (e) {
     console.error(e);
-    alert("Impossible d’accéder à la caméra");
+    alert("Impossible d’accéder à la caméra arrière");
   }
 });
 
@@ -52,3 +52,4 @@ function stopScan() {
     stream = null;
   }
 }
+
