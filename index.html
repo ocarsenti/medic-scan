@@ -1,188 +1,186 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>POC Scanner Médicament</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POC Scanner Médicament</title>
 
-  <style>
-    body {
-      margin: 0;
-      background: black;
-      color: white;
-      font-family: system-ui, -apple-system, sans-serif;
-    }
+<style>
+body {
+  margin:0;
+  background:black;
+  color:white;
+  font-family:system-ui, -apple-system, sans-serif;
+}
 
-    video {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-    }
+video {
+  width:100vw;
+  height:100vh;
+  object-fit:cover;
+}
 
-    .overlay {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 70vw;
-      height: 40vw;
-      max-height: 40vh;
-      border: 2px solid #00ff99;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-    }
+.overlay {
+  position:fixed;
+  top:50%;
+  left:50%;
+  width:70vw;
+  height:40vw;
+  max-height:40vh;
+  border:2px solid #00ff99;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
 
-    .result {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      padding: 12px;
-      background: rgba(0,0,0,0.7);
-      text-align: center;
-      font-size: 16px;
-    }
+.result {
+  position:fixed;
+  bottom:0;
+  width:100%;
+  padding:12px;
+  background:rgba(0,0,0,0.7);
+  text-align:center;
+  font-size:16px;
+}
 
-    .start {
-      position: fixed;
-      inset: 0;
-      background: black;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-    }
+.start {
+  position:fixed;
+  inset:0;
+  background:black;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10;
+}
 
-    button {
-      font-size: 18px;
-      padding: 16px 24px;
-      border-radius: 12px;
-      border: none;
-      background: #00ff99;
-      color: black;
-    }
-  </style>
+button {
+  font-size:18px;
+  padding:16px 24px;
+  border-radius:12px;
+  border:none;
+  background:#00ff99;
+  color:black;
+}
+</style>
 </head>
 
 <body>
 
-  <!-- Écran de démarrage obligatoire iOS -->
-  <div class="start" id="startScreen">
-    <button id="startBtn">📷 Démarrer le scan</button>
-  </div>
+<div class="start" id="startScreen">
+  <button id="startBtn">📷 Démarrer le scan</button>
+</div>
 
-  <video id="video" playsinline></video>
-  <canvas id="canvas" hidden></canvas>
+<video id="video" playsinline></video>
+<canvas id="canvas" hidden></canvas>
 
-  <div class="overlay"></div>
-  <div class="result" id="result">Aligne le code dans le cadre</div>
+<div class="overlay"></div>
+<div class="result" id="result">Aligne le code dans le cadre</div>
 
-  <!-- ZXing WASM -->
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const resultBox = document.getElementById("result");
+const startScreen = document.getElementById("startScreen");
+const startBtn = document.getElementById("startBtn");
 
-  <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const resultBox = document.getElementById("result");
-    const startScreen = document.getElementById("startScreen");
-    const startBtn = document.getElementById("startBtn");
+let stream = null;
+let reader = null;
+let decoding = false;
 
-    let stream = null;
-    let reader = null;
-    let decoding = false;
+let lastValue = null;
+let hits = 0;
 
-    let lastValue = null;
-    let hits = 0;
-
-    // ⚡ Forcer la caméra arrière
-    async function startCamera() {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" }, // 🔑 caméra arrière
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-
-        video.srcObject = stream;
-        await video.play();
-      } catch(e) {
-        alert("Erreur caméra : " + e.message);
-        console.error(e);
+// ⚡ Démarrage caméra arrière
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: "environment" }, // caméra arrière
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
+    });
+
+    video.srcObject = stream;
+    await video.play(); // attendre que la vidéo soit stable
+  } catch(e) {
+    alert("Erreur caméra : " + e.message);
+    console.error(e);
+  }
+}
+
+function stopCamera() {
+  if (!stream) return;
+  stream.getTracks().forEach(t => t.stop());
+  video.srcObject = null;
+  stream = null;
+}
+
+// ✅ Validation multi-frame
+function validate(value) {
+  if (value === lastValue) {
+    hits++;
+    if (hits >= 2) {
+      resultBox.textContent = "✅ " + value;
+      stopCamera();
     }
+  } else {
+    lastValue = value;
+    hits = 1;
+  }
+}
 
-    function stopCamera() {
-      if (!stream) return;
-      stream.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-      stream = null;
-    }
+// 🔁 Loop de scan
+async function scanLoop() {
+  if (!stream || decoding) {
+    requestAnimationFrame(scanLoop);
+    return;
+  }
 
-    // ✅ Multi-frame validation
-    function validate(value) {
-      if (value === lastValue) {
-        hits++;
-        if (hits >= 2) {
-          resultBox.textContent = "✅ " + value;
-          stopCamera();
-        }
-      } else {
-        lastValue = value;
-        hits = 1;
-      }
-    }
+  decoding = true;
 
-    // 🔁 Loop de scan
-    async function scanLoop() {
-      if (!stream || decoding) {
-        requestAnimationFrame(scanLoop);
-        return;
-      }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext("2d");
 
-      decoding = true;
+  // ROI central 70%
+  const rw = canvas.width * 0.7;
+  const rh = canvas.height * 0.7;
+  const rx = (canvas.width - rw) / 2;
+  const ry = (canvas.height - rh) / 2;
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, rx, ry, rw, rh, 0, 0, canvas.width, canvas.height);
 
-      // ROI central 70%
-      const rw = canvas.width * 0.7;
-      const rh = canvas.height * 0.7;
-      const rx = (canvas.width - rw) / 2;
-      const ry = (canvas.height - rh) / 2;
+  try {
+    const result = await reader.decodeFromCanvas(canvas);
+    validate(result.text);
+  } catch (e) {
+    // normal si rien trouvé
+  } finally {
+    decoding = false;
+  }
 
-      ctx.drawImage(video, rx, ry, rw, rh, 0, 0, canvas.width, canvas.height);
+  setTimeout(() => requestAnimationFrame(scanLoop), 350);
+}
 
-      try {
-        const result = await reader.decodeFromCanvas(canvas);
-        validate(result.text);
-      } catch (e) {
-        // normal si rien trouvé
-      } finally {
-        decoding = false;
-      }
+// ⚡ Démarrage complet après clic
+async function start() {
+  reader = new ZXing.BrowserMultiFormatReader({
+    formats: [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.DATA_MATRIX
+    ],
+    tryHarder: true
+  });
 
-      setTimeout(() => requestAnimationFrame(scanLoop), 350);
-    }
+  await startCamera();
+  startScreen.style.display = "none";
+  scanLoop();
+}
 
-    async function start() {
-      reader = new ZXing.BrowserMultiFormatReader({
-        formats: [
-          ZXing.BarcodeFormat.EAN_13,
-          ZXing.BarcodeFormat.EAN_8,
-          ZXing.BarcodeFormat.DATA_MATRIX
-        ],
-        tryHarder: true
-      });
-
-      await startCamera();
-      startScreen.style.display = "none";
-      scanLoop();
-    }
-
-    startBtn.addEventListener("click", start);
-    window.addEventListener("beforeunload", stopCamera);
-  </script>
+startBtn.addEventListener("click", start);
+window.addEventListener("beforeunload", stopCamera);
+</script>
 
 </body>
 </html>
