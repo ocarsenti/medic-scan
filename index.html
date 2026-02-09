@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Medic Scan</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    input { margin-bottom: 10px; }
+    #result { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Medic Scan DataMatrix</h1>
+
+  <input type="file" id="fileInput" accept="image/*">
+  <button id="uploadBtn">Décoder</button>
+
+  <div id="result"></div>
+
+  <script>
+    const uploadBtn = document.getElementById("uploadBtn");
+    const fileInput = document.getElementById("fileInput");
+    const resultDiv = document.getElementById("result");
+
+    // L'URL de ton backend Flask sur PythonAnywhere
+    const BACKEND_URL = "https://olivierca.pythonanywhere.com/decode"; // à changer
+
+    uploadBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        resultDiv.innerText = "Veuillez sélectionner une image";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      resultDiv.innerText = "Décodage en cours...";
+
+      try {
+        const res = await fetch(BACKEND_URL, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (data.found) {
+          resultDiv.innerText = "Code(s) détecté(s) :\n" + data.codes.join("\n");
+        } else if (data.found === false) {
+          resultDiv.innerText = "Aucun code détecté";
+        } else {
+          resultDiv.innerText = "Erreur : " + (data.error || "Inconnue");
+        }
+      } catch (err) {
+        resultDiv.innerText = "Erreur réseau : " + err;
+      }
+    });
+  </script>
+</body>
+</html>
