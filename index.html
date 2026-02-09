@@ -75,6 +75,7 @@
   <div class="overlay"></div>
   <div class="result" id="result">Aligne le code dans le cadre</div>
 
+  <!-- ZXing WASM -->
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
 
   <script>
@@ -91,17 +92,23 @@
     let lastValue = null;
     let hits = 0;
 
+    // ⚡ Forcer la caméra arrière
     async function startCamera() {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" }, // 🔑 caméra arrière
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
 
-      video.srcObject = stream;
-      await video.play();
+        video.srcObject = stream;
+        await video.play();
+      } catch(e) {
+        alert("Erreur caméra : " + e.message);
+        console.error(e);
+      }
     }
 
     function stopCamera() {
@@ -111,6 +118,7 @@
       stream = null;
     }
 
+    // ✅ Multi-frame validation
     function validate(value) {
       if (value === lastValue) {
         hits++;
@@ -124,6 +132,7 @@
       }
     }
 
+    // 🔁 Loop de scan
     async function scanLoop() {
       if (!stream || decoding) {
         requestAnimationFrame(scanLoop);
@@ -136,6 +145,7 @@
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
 
+      // ROI central 70%
       const rw = canvas.width * 0.7;
       const rh = canvas.height * 0.7;
       const rx = (canvas.width - rw) / 2;
@@ -147,7 +157,7 @@
         const result = await reader.decodeFromCanvas(canvas);
         validate(result.text);
       } catch (e) {
-        // normal
+        // normal si rien trouvé
       } finally {
         decoding = false;
       }
