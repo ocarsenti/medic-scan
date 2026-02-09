@@ -91,8 +91,6 @@ button {
 <div class="overlay"></div>
 <div class="result" id="result">Aligne le code dans le cadre</div>
 
-<script src="https://unpkg.com/@zxing/browser@latest"></script>
-
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
@@ -160,7 +158,7 @@ function validate(value) {
 
 // 🔁 Loop de scan
 async function scanLoop() {
-  if (!stream || decoding) {
+  if (!stream || decoding || !reader) {
     requestAnimationFrame(scanLoop);
     return;
   }
@@ -193,19 +191,23 @@ async function scanLoop() {
 // ⚡ Démarrage complet après clic
 async function start() {
   log("Start clic détecté !");
-  reader = new ZXing.BrowserMultiFormatReader({
-    formats:[
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.DATA_MATRIX
-    ],
-    tryHarder:true
-  });
-
   await startCamera();
 
   // ⚡ Délai iOS pour stabiliser la vidéo
   await new Promise(r => setTimeout(r, 500));
+
+  // ⚡ Import dynamique ZXing WASM
+  log("Import ZXing…");
+  const ZXingModule = await import('https://unpkg.com/@zxing/browser@latest');
+
+  reader = new ZXingModule.BrowserMultiFormatReader({
+    formats:[
+      ZXingModule.BarcodeFormat.EAN_13,
+      ZXingModule.BarcodeFormat.EAN_8,
+      ZXingModule.BarcodeFormat.DATA_MATRIX
+    ],
+    tryHarder:true
+  });
 
   startScreen.style.display = "none";
   scanLoop();
