@@ -59,10 +59,27 @@ button {
   background:#00ff99;
   color:black;
 }
+
+/* zone log */
+#log {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  max-height:30vh;
+  overflow:auto;
+  background:#111;
+  color:#0f0;
+  font-size:12px;
+  padding:4px;
+  z-index:9999;
+}
 </style>
 </head>
 
 <body>
+
+<div id="log"></div>
 
 <div class="start" id="startScreen">
   <button id="startBtn">📷 Démarrer le scan</button>
@@ -75,12 +92,14 @@ button {
 <div class="result" id="result">Aligne le code dans le cadre</div>
 
 <script src="https://unpkg.com/@zxing/browser@latest"></script>
+
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const resultBox = document.getElementById("result");
 const startScreen = document.getElementById("startScreen");
 const startBtn = document.getElementById("startBtn");
+const logDiv = document.getElementById("log");
 
 let stream = null;
 let reader = null;
@@ -89,22 +108,30 @@ let decoding = false;
 let lastValue = null;
 let hits = 0;
 
+// fonction log sur page
+function log(msg) {
+  console.log(msg);
+  logDiv.innerHTML += msg + "<br>";
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
 // ⚡ Démarrage caméra arrière
 async function startCamera() {
   try {
+    log("Tentative d'accès caméra…");
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
-        facingMode: { ideal: "environment" }, // caméra arrière
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        facingMode: { ideal: "environment" },
+        width: { ideal:1280 },
+        height: { ideal:720 }
       }
     });
 
     video.srcObject = stream;
-    await video.play(); // attendre que la vidéo soit stable
+    await video.play();
+    log("Caméra démarrée ✅");
   } catch(e) {
-    alert("Erreur caméra : " + e.message);
-    console.error(e);
+    log("Erreur caméra : " + e.message);
   }
 }
 
@@ -113,6 +140,7 @@ function stopCamera() {
   stream.getTracks().forEach(t => t.stop());
   video.srcObject = null;
   stream = null;
+  log("Caméra arrêtée");
 }
 
 // ✅ Validation multi-frame
@@ -121,6 +149,7 @@ function validate(value) {
     hits++;
     if (hits >= 2) {
       resultBox.textContent = "✅ " + value;
+      log("Code détecté : " + value);
       stopCamera();
     }
   } else {
@@ -142,35 +171,35 @@ async function scanLoop() {
   canvas.height = video.videoHeight;
   const ctx = canvas.getContext("2d");
 
-  // ROI central 70%
   const rw = canvas.width * 0.7;
   const rh = canvas.height * 0.7;
-  const rx = (canvas.width - rw) / 2;
-  const ry = (canvas.height - rh) / 2;
+  const rx = (canvas.width - rw)/2;
+  const ry = (canvas.height - rh)/2;
 
   ctx.drawImage(video, rx, ry, rw, rh, 0, 0, canvas.width, canvas.height);
 
   try {
     const result = await reader.decodeFromCanvas(canvas);
     validate(result.text);
-  } catch (e) {
-    // normal si rien trouvé
+  } catch(e) {
+    // normal si rien détecté
   } finally {
     decoding = false;
   }
 
-  setTimeout(() => requestAnimationFrame(scanLoop), 350);
+  setTimeout(()=>requestAnimationFrame(scanLoop), 350);
 }
 
 // ⚡ Démarrage complet après clic
 async function start() {
+  log("Start clic détecté !");
   reader = new ZXing.BrowserMultiFormatReader({
-    formats: [
+    formats:[
       ZXing.BarcodeFormat.EAN_13,
       ZXing.BarcodeFormat.EAN_8,
       ZXing.BarcodeFormat.DATA_MATRIX
     ],
-    tryHarder: true
+    tryHarder:true
   });
 
   await startCamera();
