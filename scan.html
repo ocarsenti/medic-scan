@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>POC Scanner Médicament</title>
+<title>POC Scanner EAN</title>
 
 <style>
 body {
@@ -60,7 +60,6 @@ button {
   color:black;
 }
 
-/* zone log */
 #log {
   position:fixed;
   top:0;
@@ -82,139 +81,62 @@ button {
 <div id="log"></div>
 
 <div class="start" id="startScreen">
-  <button id="startBtn">📷 Démarrer le scan</button>
+  <button id="startBtn">📷 Démarrer le scan EAN</button>
 </div>
 
-<video id="video" playsinline></video>
-<canvas id="canvas" hidden></canvas>
-
 <div class="overlay"></div>
-<div class="result" id="result">Aligne le code dans le cadre</div>
+<div class="result" id="result">Aligne le code EAN dans le cadre</div>
 
+<script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
 <script>
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
+const logDiv = document.getElementById("log");
 const resultBox = document.getElementById("result");
 const startScreen = document.getElementById("startScreen");
-const startBtn = document.getElementById("startBtn");
-const logDiv = document.getElementById("log");
 
-let stream = null;
-let reader = null;
-let decoding = false;
-
-let lastValue = null;
-let hits = 0;
-
-// fonction log sur page
-function log(msg) {
+function log(msg){
   console.log(msg);
   logDiv.innerHTML += msg + "<br>";
   logDiv.scrollTop = logDiv.scrollHeight;
 }
 
-// ⚡ Démarrage caméra arrière
-async function startCamera() {
-  try {
-    log("Tentative d'accès caméra…");
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal:1280 },
-        height: { ideal:720 }
+function startQuagga() {
+  log("Démarrage Quagga…");
+
+  Quagga.init({
+    inputStream : {
+      type : "LiveStream",
+      target: document.querySelector('body'), // on met la vidéo full page
+      constraints: {
+        facingMode: "environment" // caméra arrière
       }
-    });
-
-    video.srcObject = stream;
-    await video.play();
-    log("Caméra démarrée ✅");
-  } catch(e) {
-    log("Erreur caméra : " + e.name + " / " + e.message);
-  }
-}
-
-function stopCamera() {
-  if (!stream) return;
-  stream.getTracks().forEach(t => t.stop());
-  video.srcObject = null;
-  stream = null;
-  log("Caméra arrêtée");
-}
-
-// ✅ Validation multi-frame
-function validate(value) {
-  if (value === lastValue) {
-    hits++;
-    if (hits >= 2) {
-      resultBox.textContent = "✅ " + value;
-      log("Code détecté : " + value);
-      stopCamera();
-    }
-  } else {
-    lastValue = value;
-    hits = 1;
-  }
-}
-
-// 🔁 Loop de scan
-async function scanLoop() {
-  if (!stream || decoding || !reader) {
-    requestAnimationFrame(scanLoop);
-    return;
-  }
-
-  decoding = true;
-
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-
-  const rw = canvas.width * 0.7;
-  const rh = canvas.height * 0.7;
-  const rx = (canvas.width - rw)/2;
-  const ry = (canvas.height - rh)/2;
-
-  ctx.drawImage(video, rx, ry, rw, rh, 0, 0, canvas.width, canvas.height);
-
-  try {
-    const result = await reader.decodeFromCanvas(canvas);
-    validate(result.text);
-  } catch(e) {
-    // normal si rien détecté
-  } finally {
-    decoding = false;
-  }
-
-  setTimeout(()=>requestAnimationFrame(scanLoop), 350);
-}
-
-// ⚡ Démarrage complet après clic
-async function start() {
-  log("Start clic détecté !");
-  await startCamera();
-
-  // ⚡ Délai iOS pour stabiliser la vidéo
-  await new Promise(r => setTimeout(r, 500));
-
-  // ⚡ Import dynamique ZXing WASM
-  log("Import ZXing…");
-  const ZXingModule = await import('https://unpkg.com/@zxing/browser@latest');
-
-  reader = new ZXingModule.BrowserMultiFormatReader({
-    formats:[
-      ZXingModule.BarcodeFormat.EAN_13,
-      ZXingModule.BarcodeFormat.EAN_8,
-      ZXingModule.BarcodeFormat.DATA_MATRIX
-    ],
-    tryHarder:true
+    },
+    decoder : {
+      readers : ["ean_reader"] // EAN uniquement
+    },
+    locate: true // active la localisation du code
+  }, function(err) {
+      if (err) {
+          log("Erreur Quagga : " + err);
+          return;
+      }
+      log("Quagga initialisé ✅");
+      Quagga.start();
   });
 
-  startScreen.style.display = "none";
-  scanLoop();
+  // callback détection
+  Quagga.onDetected(function(result) {
+    const code = result.codeResult.code;
+    log("Code détecté : " + code);
+    resultBox.textContent = "✅ " + code;
+    // arrêter après détection
+    Quagga.stop();
+  });
 }
 
-startBtn.addEventListener("click", start);
-window.addEventListener("beforeunload", stopCamera);
+document.getElementById("startBtn").addEventListener("click", () => {
+  startScreen.style.display = "none";
+  startQuagga();
+});
 </script>
 
 </body>
